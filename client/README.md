@@ -7,3 +7,7 @@ This template provides a minimal setup to get React 19 working in Vite with HMR 
 
 # bug
 最后一个data不会加到对话中 已修复
+
+
+# 多模型切换
+# 文件上传
