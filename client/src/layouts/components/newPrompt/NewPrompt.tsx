@@ -1,11 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import "./newPrompt.css";
 import { useState } from "react";
 import { IKImage } from "imagekitio-react";
-import Upload from "../upLoad/UpLoad";
-import model from "../../../lib/gemini";
+import Upload from "../upLoad/UpLoad.jsx";
+// import model from "../../../lib/gemini.js";
+import { geminiFlash, geminiPro, modelConfig } from "../../../lib/gemini.js";
 import Markdown from "react-markdown";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Select } from "antd";
 const NewPrompt = ({ data }) => {
   const [img, setImg] = useState({
     isLoading: false,
@@ -17,6 +19,8 @@ const NewPrompt = ({ data }) => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
 
+  const [selectedModel, setSelectedModel] = useState("gemini-pro"); // 模型选择
+
   const endRef = useRef(null);
   const formRef = useRef(null);
 
@@ -24,15 +28,45 @@ const NewPrompt = ({ data }) => {
     endRef.current.scrollIntoView({ behavior: "smooth" });
   }, [data, question, answer, img.dbData]);
 
-  const chat = model.startChat({
-    history: data?.history.map(({ role, parts }) => ({
-      role,
-      parts: [{ text: parts[0].text }],
-    })),
-    generationConfig: {
-      // maxOutputTokens: 100,
-    },
-  });
+  // const chat = model.startChat({
+  //   history: data?.history.map(({ role, parts }) => ({
+  //     role,
+  //     parts: [{ text: parts[0].text }],
+  //   })),
+  //   generationConfig: {
+  //     // maxOutputTokens: 100,
+  //   },
+  // });
+
+  const chat = useMemo(() => {
+    // 选择对应的模型
+    let selectedModelInstance;
+    switch (selectedModel) {
+      case "gemini-pro":
+        selectedModelInstance = geminiPro;
+        break;
+      case "gemini-flash":
+        selectedModelInstance = geminiFlash;
+        break;
+      default:
+        selectedModelInstance = geminiPro;
+    }
+    // 将配置好的模型返回
+    return selectedModelInstance.startChat({
+      history: data?.history.map(({ role, parts }) => ({
+        role,
+        parts: [{ text: parts[0].text }],
+      })),
+      generationConfig: {
+        // maxOutputTokens: 100,
+      },
+    });
+  }, [selectedModel]);
+
+  const handleChange = (value: string) => {
+    console.log(`selected ${value}`);
+    setSelectedModel(value);
+  };
   const handleOnSubmit = async (e) => {
     e.preventDefault();
 
@@ -137,8 +171,39 @@ const NewPrompt = ({ data }) => {
         </div>
       )}
       <div className="endChat" ref={endRef}></div>
+
       <form className="newForm" onSubmit={handleOnSubmit} ref={formRef}>
         <Upload setImg={setImg} />
+        {/* 模型选择器 */}
+        <Select
+          defaultValue="gemini-2.5-pro"
+          onChange={handleChange}
+          style={{ width: 150 }}
+          options={[
+            {
+              label: <span>gemini</span>,
+              title: "gemini",
+              options: [
+                {
+                  label: <span>gemini-2.5-flash</span>,
+                  value: "gemini-flash",
+                },
+                {
+                  label: <span>gemini-2.5-pro</span>,
+                  value: "gemini-pro",
+                },
+              ],
+            },
+            {
+              label: <span>deepseek</span>,
+              title: "deepseek",
+              options: [
+                { label: <span>deepseek</span>, value: "deepseek" },
+                { label: <span>deepseek-2</span>, value: "deepseek-2" },
+              ],
+            },
+          ]}
+        />
         <input id="file" type="file" multiple={false} hidden />
         <input
           type="text"
