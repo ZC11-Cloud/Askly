@@ -5,6 +5,7 @@ import { IKImage } from "imagekitio-react";
 import Upload from "../upLoad/UpLoad.jsx";
 // import model from "../../../lib/gemini.js";
 import { geminiFlash, geminiPro, modelConfig } from "../../../lib/gemini.js";
+import { deepSeekChat, deepSeekConfig } from "../../../lib/deepseek.js";
 import Markdown from "react-markdown";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select } from "antd";
@@ -47,6 +48,10 @@ const NewPrompt = ({ data }) => {
         break;
       case "gemini-flash":
         selectedModelInstance = geminiFlash;
+        break;
+      case "deepseek":
+        selectedModelInstance = deepSeekChat;
+        console.log("使用了deepseek模型")
         break;
       default:
         selectedModelInstance = geminiPro;
@@ -199,7 +204,6 @@ const NewPrompt = ({ data }) => {
               title: "deepseek",
               options: [
                 { label: <span>deepseek</span>, value: "deepseek" },
-                { label: <span>deepseek-2</span>, value: "deepseek-2" },
               ],
             },
           ]}

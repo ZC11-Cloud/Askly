@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_GEMINI_API_KEY: string;
+  readonly VITE_DEEPSEEK_API_KEY: string;
   // 这里可以继续加其他 VITE_ 开头的环境变量
 }
 
