@@ -126,6 +126,24 @@ app.put('/api/chat/:id', requireAuth(), async (req, res) => {
   }
 })
 
+app.delete('/api/chat/:id', requireAuth(), async (req, res) => {
+  const userId = req.auth().userId
+  const chatId = req.params.id
+
+  try {
+    await Chat.deleteOne({_id: chatId, userId: userId})
+
+    await UserChats.updateOne(
+      {userId: userId},
+      {$pull: {chats: {_id: chatId}}}
+    )
+    res.status(200).send("Chat deleted successfully")
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Error deleting chat!")
+  }
+})
+
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, "./public/dist", "index.html"))
 })

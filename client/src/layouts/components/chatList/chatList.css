@@ -51,7 +51,17 @@
       background-color: #2c2937;
     }
   }
-
+  .chatItem {
+    display: flex;
+    align-items: center;
+    .deleteButton {
+      width: 10px;
+      height: 10px;
+    }
+    .deleteButton:hover {
+      color: red;
+    }
+  }
   .upgrade {
     margin-top: auto;
     display: flex;

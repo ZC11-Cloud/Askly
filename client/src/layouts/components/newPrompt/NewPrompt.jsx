@@ -8,7 +8,12 @@ import { geminiFlash, geminiPro, modelConfig } from "../../../lib/gemini.js";
 import { deepSeekChat, deepSeekConfig } from "../../../lib/deepseek.js";
 import Markdown from "react-markdown";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Select } from "antd";
+import { Select, Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import { GenerativeModel } from "@google/generative-ai";
+import { DeepSeekModel } from "../../../lib/deepseek.js";
+import { ai } from "../../../lib/newGemini.js";
+// 定义模型接口
 const NewPrompt = ({ data }) => {
   const [img, setImg] = useState({
     isLoading: false,
@@ -19,25 +24,17 @@ const NewPrompt = ({ data }) => {
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false); //对话加载状态
 
   const [selectedModel, setSelectedModel] = useState("gemini-pro"); // 模型选择
 
   const endRef = useRef(null);
   const formRef = useRef(null);
+  const currentChatRef = useRef(null);
 
   useEffect(() => {
     endRef.current.scrollIntoView({ behavior: "smooth" });
   }, [data, question, answer, img.dbData]);
-
-  // const chat = model.startChat({
-  //   history: data?.history.map(({ role, parts }) => ({
-  //     role,
-  //     parts: [{ text: parts[0].text }],
-  //   })),
-  //   generationConfig: {
-  //     // maxOutputTokens: 100,
-  //   },
-  // });
 
   const chat = useMemo(() => {
     // 选择对应的模型
@@ -51,11 +48,13 @@ const NewPrompt = ({ data }) => {
         break;
       case "deepseek":
         selectedModelInstance = deepSeekChat;
-        console.log("使用了deepseek模型")
+        console.log("使用了deepseek模型");
         break;
       default:
         selectedModelInstance = geminiPro;
     }
+    // 保存当前聊天实例引用
+    currentChatRef.current = selectedModelInstance;
     // 将配置好的模型返回
     return selectedModelInstance.startChat({
       history: data?.history.map(({ role, parts }) => ({
@@ -66,9 +65,9 @@ const NewPrompt = ({ data }) => {
         // maxOutputTokens: 100,
       },
     });
-  }, [selectedModel]);
-
-  const handleChange = (value: string) => {
+  }, [selectedModel, data?.history]);
+  
+  const handleChange = (value) => {
     console.log(`selected ${value}`);
     setSelectedModel(value);
   };
@@ -81,6 +80,18 @@ const NewPrompt = ({ data }) => {
     add(text, false);
   };
 
+  // 添加取消请求的函数
+  const cancelRequest = async () => {
+    if (currentChatRef.current && currentChatRef.current.cancelRequest) {
+      try {
+        await currentChatRef.current.cancelRequest();
+        setIsChatLoading(false);
+        console.log("请求已取消");
+      } catch (error) {
+        console.error("取消请求时出错:", error);
+      }
+    }
+  };
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async () => {
@@ -104,6 +115,7 @@ const NewPrompt = ({ data }) => {
         .then(() => {
           setQuestion("");
           setAnswer("");
+          setIsChatLoading(false);
           setImg({
             isLoading: false,
             error: "",
@@ -115,11 +127,13 @@ const NewPrompt = ({ data }) => {
     },
     onError: (err) => {
       console.log(err);
+      setIsChatLoading(false);
     },
   });
   const add = async (text, isInitial) => {
     try {
       if (!isInitial) setQuestion(text);
+      setIsChatLoading(true);
       const result = await chat.sendMessageStream(
         Object.entries(img.aiData).length ? [img.aiData, text] : [text]
       );
@@ -136,7 +150,14 @@ const NewPrompt = ({ data }) => {
         mutation.mutate();
       }, 50);
     } catch (error) {
-      console.log(error);
+      // 检查是否是用户取消请求
+      if (error.message === "Request cancelled by user") {
+        console.log("用户取消了请求");
+        setAnswer((prev) => prev + "\n\n[请求已被取消]");
+      } else {
+        console.log(error);
+      }
+      setIsChatLoading(false);
     }
   };
   const hasRun = useRef(false);
@@ -202,9 +223,7 @@ const NewPrompt = ({ data }) => {
             {
               label: <span>deepseek</span>,
               title: "deepseek",
-              options: [
-                { label: <span>deepseek</span>, value: "deepseek" },
-              ],
+              options: [{ label: <span>deepseek</span>, value: "deepseek" }],
             },
           ]}
         />
@@ -214,10 +233,35 @@ const NewPrompt = ({ data }) => {
           name="text"
           autoComplete="off"
           placeholder="Ask anything..."
+          disabled={isChatLoading} // 在加载时禁用输入
         />
-        <button>
-          <img src="/arrow.png" alt="" />
+        <button type="submit" disabled={isChatLoading}>
+          {isChatLoading ? (
+            <Spin indicator={<LoadingOutlined spin />} />
+          ) : (
+            <img src="/arrow.png" alt="" />
+          )}
         </button>
+
+        {/* 添加取消按钮 */}
+        {isChatLoading && (
+          <button
+            type="button"
+            onClick={cancelRequest}
+            className="cancel-button"
+            style={{
+              marginLeft: "10px",
+              padding: "5px 10px",
+              backgroundColor: "#ff4444",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            取消
+          </button>
+        )}
       </form>
     </>
   );

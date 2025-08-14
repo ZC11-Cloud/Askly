@@ -39,10 +39,19 @@ class DeepSeekModel {
         return "user";
     }
   }
-
+  // 取消当前请求
+  async cancelRequest() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
   // 模拟Gemini的sendMessageStream方法
   async sendMessageStream(messages) {
     try {
+      // 创建新的AbortController用于当前请求
+      this.abortController = new AbortController();
+
       // 准备消息数组
       let currentMessages = [...this.history];
 
@@ -76,6 +85,8 @@ class DeepSeekModel {
         model: this.model,
         messages: currentMessages,
         stream: true
+      }, {
+        signal: this.abortController.signal
       });
 
       // 直接返回兼容的流格式
@@ -104,6 +115,11 @@ class DeepSeekModel {
                   }
                 };
               } catch (error) {
+                // 检查是否是因为取消请求导致的错误
+                  if (error.name === 'AbortError') {
+                    console.log("请求已被用户取消");
+                    return { done: true };
+                  }
                 console.error("Stream processing error:", error);
                 return { done: true };
               }
