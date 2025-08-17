@@ -13,6 +13,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { GenerativeModel } from "@google/generative-ai";
 import { DeepSeekModel } from "../../../lib/deepseek.js";
 import { ai } from "../../../lib/newGemini.js";
+import MarkdownEditor from "../MarkdownEditor/MarkdownEditor.jsx";
 // 定义模型接口
 const NewPrompt = ({ data }) => {
   const [img, setImg] = useState({
@@ -24,10 +25,11 @@ const NewPrompt = ({ data }) => {
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answers, setAnswers] = useState({});
   const [isChatLoading, setIsChatLoading] = useState(false); //对话加载状态
 
-  const [selectedModel, setSelectedModel] = useState("gemini-pro"); // 模型选择
-
+  const [selectedModel, setSelectedModel] = useState(["gemini-pro"]); // 模型选择
+  const [isEditingAnswer, setIsEditingAnswer] = useState(false); // 添加编辑状态
   const endRef = useRef(null);
   const formRef = useRef(null);
   const currentChatRef = useRef(null);
@@ -66,7 +68,7 @@ const NewPrompt = ({ data }) => {
       },
     });
   }, [selectedModel, data?.history]);
-  
+
   const handleChange = (value) => {
     console.log(`selected ${value}`);
     setSelectedModel(value);
@@ -160,6 +162,47 @@ const NewPrompt = ({ data }) => {
       setIsChatLoading(false);
     }
   };
+  // const add = async (text, isInitial) => {
+  //   if (!isInitial) setQuestion(text);
+  //   setIsChatLoading(true);
+
+  //   const results = {};
+  //   const streams = selectedModel.map(async (modelKey) => {
+  //     let modelInstance;
+  //     switch (modelKey) {
+  //       case "gemini-pro":
+  //         modelInstance = geminiPro;
+  //         break;
+  //       case "gemini-flash":
+  //         modelInstance = geminiFlash;
+  //         break;
+  //       case "deepseek":
+  //         modelInstance = deepSeekChat;
+  //         break;
+  //       default:
+  //         modelInstance = geminiPro;
+  //     }
+
+  //     const chatInstance = modelInstance.startChat({
+  //       history: data?.history.map(({ role, parts }) => ({
+  //         role,
+  //         parts: [{ text: parts[0].text }],
+  //       })),
+  //     });
+
+  //     let accumulated = "";
+  //     const result = await chatInstance.sendMessageStream(text);
+  //     for await (const chunk of result.stream) {
+  //       accumulated += chunk.text();
+  //       setAnswers((prev) => ({ ...prev, [modelKey]: accumulated }));
+  //     }
+  //     results[modelKey] = accumulated;
+  //   });
+
+  //   await Promise.all(streams);
+
+  //   setIsChatLoading(false);
+  // };
   const hasRun = useRef(false);
   useEffect(() => {
     if (!hasRun.current) {
@@ -169,6 +212,38 @@ const NewPrompt = ({ data }) => {
     }
     hasRun.current = true;
   }, []);
+
+  // 添加保存编辑的处理函数
+  const handleSaveEdit = async (editedContent) => {
+    setAnswer(editedContent);
+    setIsEditingAnswer(false);
+
+    // 更新到服务器
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/chat/${data._id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: question.length ? question : undefined,
+          answer: editedContent,
+          img: img.dbData?.filePath || undefined,
+        }),
+      });
+
+      // 使查询失效以刷新数据
+      queryClient.invalidateQueries({ queryKey: ["chat", data._id] });
+    } catch (error) {
+      console.error("保存编辑失败:", error);
+    }
+  };
+
+  // 添加取消编辑的处理函数
+  const handleCancelEdit = () => {
+    setIsEditingAnswer(false);
+  };
   return (
     <>
       {/* ADD NEW CHAT */}
@@ -184,18 +259,32 @@ const NewPrompt = ({ data }) => {
       {question && <div className="message user">{question}</div>}
       {answer && (
         <div className="message">
-          <Markdown>{answer}</Markdown>
+          <MarkdownEditor
+            answer={answer}
+            isEditing={isEditingAnswer}
+            onSave={handleSaveEdit}
+            onCancel={handleCancelEdit}
+          />
+
           <div className="message-actions">
             <button>复制</button>
-            {/* <button>最佳回复</button>
-            <button>错误回复</button>
-            <button>朗读</button>
-            <button>在画布中编辑</button>
-            <button>共享</button>
-            <button>重试</button> */}
+            {!isEditingAnswer && (
+              <button onClick={() => setIsEditingAnswer(true)}>
+                在画布中编辑
+              </button>
+            )}
+            {/* ... 其他按钮 */}
           </div>
         </div>
       )}
+      {/* <div className="answers-container">
+        {Object.entries(answers).map(([modelKey, ans]) => (
+          <div key={modelKey} className="answer-block">
+            <h4>{modelKey}</h4>
+            <Markdown>{ans}</Markdown>
+          </div>
+        ))}
+      </div> */}
       <div className="endChat" ref={endRef}></div>
 
       <form className="newForm" onSubmit={handleOnSubmit} ref={formRef}>
@@ -227,6 +316,25 @@ const NewPrompt = ({ data }) => {
             },
           ]}
         />
+        {/* <Select
+          mode="multiple" // 支持多选
+          defaultValue={["gemini-pro"]}
+          onChange={setSelectedModel}
+          style={{ width: 250 }}
+          options={[
+            {
+              label: "Gemini",
+              options: [
+                { label: "gemini-2.5-flash", value: "gemini-flash" },
+                { label: "gemini-2.5-pro", value: "gemini-pro" },
+              ],
+            },
+            {
+              label: "DeepSeek",
+              options: [{ label: "deepseek", value: "deepseek" }],
+            },
+          ]}
+        /> */}
         <input id="file" type="file" multiple={false} hidden />
         <input
           type="text"

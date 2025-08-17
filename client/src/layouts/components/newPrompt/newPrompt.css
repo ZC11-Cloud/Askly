@@ -38,3 +38,15 @@ label {
     height: 16px;
   }
 }
+
+.answers-container {
+  display: flex;
+  gap: 16px;
+}
+.answer-block {
+  flex: 1;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 6px;
+  background: #050505;
+}

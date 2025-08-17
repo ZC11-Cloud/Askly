@@ -1,11 +1,13 @@
+// ChatPage.jsx
 import "./chatPage.css";
 import NewPrompt from "../../layouts/components/newPrompt/NewPrompt";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
-import Markdown from "react-markdown";
 import { IKImage } from "imagekitio-react";
 import { CopyOutlined, CheckOutlined } from "@ant-design/icons";
 import { useState } from "react";
+import MarkdownEditor from "../../layouts/components/MarkdownEditor/MarkdownEditor.jsx"; // 添加导入
+
 export const ChatPage = () => {
   const { pathname } = useLocation();
   const chatId = pathname.split("/").pop();
@@ -16,6 +18,7 @@ export const ChatPage = () => {
         credentials: "include",
       }).then((res) => res.json()),
   });
+  
   // 复制
   const [copyStates, setCopyStates] = useState({});
   const copyToClipboard = (content, index) => {
@@ -52,6 +55,7 @@ export const ChatPage = () => {
   const stopSpeaking = () => {
     window.speechSynthesis.cancel();
   };
+  
   return (
     <div className="chatPage">
       <div className="wrapper">
@@ -83,7 +87,9 @@ export const ChatPage = () => {
                       ></IKImage>
                     )}
                     <div>
-                      <Markdown>{text}</Markdown>
+                      {/* 使用 MarkdownEditor 替换原来的 Markdown 组件 */}
+                      <MarkdownEditor answer={text} readOnly={true} />
+                      
                       <div className="message-action">
                         {item.role !== "user" && (
                           <>
