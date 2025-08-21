@@ -28,7 +28,7 @@ const NewPrompt = ({ data }) => {
   const [answers, setAnswers] = useState({});
   const [isChatLoading, setIsChatLoading] = useState(false); //对话加载状态
 
-  const [selectedModel, setSelectedModel] = useState(["gemini-pro"]); // 模型选择
+  const [selectedModel, setSelectedModel] = useState(["gemini-flash"]); // 模型选择
   const [isEditingAnswer, setIsEditingAnswer] = useState(false); // 添加编辑状态
   const endRef = useRef(null);
   const formRef = useRef(null);
@@ -53,7 +53,7 @@ const NewPrompt = ({ data }) => {
         console.log("使用了deepseek模型");
         break;
       default:
-        selectedModelInstance = geminiPro;
+        selectedModelInstance = geminiFlash;
     }
     // 保存当前聊天实例引用
     currentChatRef.current = selectedModelInstance;
@@ -207,6 +207,8 @@ const NewPrompt = ({ data }) => {
   useEffect(() => {
     if (!hasRun.current) {
       if (data?.history?.length === 1) {
+        console.log("首次执行");
+        console.log("data", data);
         add(data?.history[0].parts[0].text, true);
       }
     }
@@ -291,9 +293,14 @@ const NewPrompt = ({ data }) => {
         <Upload setImg={setImg} />
         {/* 模型选择器 */}
         <Select
-          defaultValue="gemini-2.5-pro"
+          defaultValue="gemini-2.5-flash"
           onChange={handleChange}
-          style={{ width: 150 }}
+          style={{
+            width: 150,
+            selectorBg: "#605e68",
+            optionSelectedBg: "#605e68",
+            optionSelectedColor: "#605e68",
+          }}
           options={[
             {
               label: <span>gemini</span>,

@@ -6,7 +6,7 @@ export const DashboardPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const mutation = useMutation({
-    mutationFn: (text) => {
+    mutationFn: async (text) => {
       return fetch(`${import.meta.env.VITE_API_URL}/api/chats`, {
         method: "POST",
         credentials: "include", // 让浏览器在请求时自动携带cookie
@@ -33,7 +33,7 @@ export const DashboardPage = () => {
       <div className="texts">
         <div className="logo">
           <img src="/logo.png" alt="" />
-          <h1>LAMA AI</h1>
+          <h1>Askly</h1>
         </div>
         <div className="options">
           <div className="option">

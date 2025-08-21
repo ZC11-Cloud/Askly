@@ -9,7 +9,7 @@ export const HomePage = () => {
     <div className="homePage">
       <img src="/orbital.png" alt="" className="orbital" />
       <div className="left">
-        <h1>LAMA AI</h1>
+        <h1>Askly</h1>
         <h2>Supercharge your creativity and productivity</h2>
         <h3>
           Lorem ipsum dolor sit amet consectetur adipisicing elit.Magnam

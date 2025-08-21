@@ -1,16 +1,9 @@
 import React from "react";
 import { Link, Outlet } from "react-router-dom";
 import "./rootLayout.css";
-import {
-  ClerkProvider,
-  SignedIn,
-  UserButton,
-} from "@clerk/clerk-react";
+import { ClerkProvider, SignedIn, UserButton } from "@clerk/clerk-react";
 
-import {
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Create a client
 const queryClient = new QueryClient();
 export const RootLayout = () => {
@@ -27,7 +20,7 @@ export const RootLayout = () => {
           <header>
             <Link to={"/"} className="logo">
               <img src="/logo.png" alt="" />
-              <span>LAMA AI</span>
+              <span>Askly</span>
             </Link>
             <div className="user">
               <SignedIn>

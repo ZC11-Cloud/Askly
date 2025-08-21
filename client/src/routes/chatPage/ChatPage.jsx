@@ -1,6 +1,6 @@
 // ChatPage.jsx
 import "./chatPage.css";
-import NewPrompt from "../../layouts/components/newPrompt/NewPrompt";
+import NewPrompt from "../../layouts/components/newPrompt/NewPrompt.jsx";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { IKImage } from "imagekitio-react";
@@ -21,6 +21,7 @@ export const ChatPage = () => {
   
   // 复制
   const [copyStates, setCopyStates] = useState({});
+  
   const copyToClipboard = (content, index) => {
     navigator.clipboard.writeText(content);
     setCopyStates((prev) => ({

@@ -26,3 +26,9 @@ npm install
 
 # 启动服务 (需要配置.env文件)
 npm start
+
+## TODO
+多文件上传
+视频音频，大文件
+
+<canvas>图片压缩

@@ -86,10 +86,34 @@ app.post('/api/chats', requireAuth(), async (req, res) => {
 })
 
 app.get('/api/userchats', requireAuth(), async (req, res) => {
-  const userId = req.auth().userId
+
   try {
-    const userChats = await UserChats.find({ userId })
-    res.status(200).send(userChats[0].chats)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const userId = req.auth().userId
+    let query = { userId: userId };
+    // 如果有搜索关键词，则添加搜索条件
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { 'history.parts.text': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const chats = await UserChats.find(query)
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const total = await UserChats.countDocuments(query);
+    res.json({
+      chats,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+    // const userChats = await UserChats.find({ userId })
+    // res.status(200).send(userChats[0].chats)
   } catch (error) {
     console.log(error)
     res.status(500).send("Error fetching userchats!")
@@ -131,11 +155,11 @@ app.delete('/api/chat/:id', requireAuth(), async (req, res) => {
   const chatId = req.params.id
 
   try {
-    await Chat.deleteOne({_id: chatId, userId: userId})
+    await Chat.deleteOne({ _id: chatId, userId: userId })
 
     await UserChats.updateOne(
-      {userId: userId},
-      {$pull: {chats: {_id: chatId}}}
+      { userId: userId },
+      { $pull: { chats: { _id: chatId } } }
     )
     res.status(200).send("Chat deleted successfully")
   } catch (error) {
