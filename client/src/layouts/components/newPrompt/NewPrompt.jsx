@@ -25,18 +25,20 @@ const NewPrompt = ({ data }) => {
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState([]);
   const [isChatLoading, setIsChatLoading] = useState(false); //对话加载状态
 
-  const [selectedModel, setSelectedModel] = useState(["gemini-flash"]); // 模型选择
-  const [isEditingAnswer, setIsEditingAnswer] = useState(false); // 添加编辑状态
+  const [selectedModel, setSelectedModel] = useState("gemini-flash"); // 模型选择
+  const [selectedModels, setSelectedModels] = useState(["gemini-flash"]); // 多模型选择
+  const [bestModel, setBestModel] = useState(null);
+
   const endRef = useRef(null);
   const formRef = useRef(null);
   const currentChatRef = useRef(null);
 
   useEffect(() => {
     endRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [data, question, answer, img.dbData]);
+  }, [data, question, answer, img.dbData, answers]);
 
   const chat = useMemo(() => {
     // 选择对应的模型
@@ -71,15 +73,20 @@ const NewPrompt = ({ data }) => {
 
   const handleChange = (value) => {
     console.log(`selected ${value}`);
-    setSelectedModel(value);
+    // setSelectedModel(value);
+    setSelectedModels(value);
   };
   const handleOnSubmit = async (e) => {
     e.preventDefault();
 
     const text = e.target.text.value;
     if (!text) return;
-
-    add(text, false);
+    e.target.text.value = "";
+    if (selectedModels.length === 1) {
+      add(text, false);
+    } else if (selectedModels.length === 2) {
+      adds(text);
+    }
   };
 
   // 添加取消请求的函数
@@ -94,9 +101,23 @@ const NewPrompt = ({ data }) => {
       }
     }
   };
+
+  const handleSelectBest = (model) => {
+    console.log(model);
+    setBestModel(model);
+    // 可发送到后端记录用户选择
+    const bestAnswerObj = answers.find((item) => item.model === model);
+    console.log(bestAnswerObj);
+    mutation.mutate({
+      question,
+      answer: bestAnswerObj ? bestAnswerObj.answer : "",
+      img: img.dbData?.filePath || undefined,
+    });
+  };
+
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ question, answer, img }) => {
       return fetch(`${import.meta.env.VITE_API_URL}/api/chat/${data._id}`, {
         method: "PUT",
         credentials: "include", // 让浏览器在请求时自动携带cookie
@@ -106,7 +127,7 @@ const NewPrompt = ({ data }) => {
         body: JSON.stringify({
           question: question.length ? question : undefined,
           answer,
-          img: img.dbData?.filePath || undefined,
+          img: img?.dbData?.filePath || undefined,
         }),
       }).then((res) => res.json());
     },
@@ -117,6 +138,8 @@ const NewPrompt = ({ data }) => {
         .then(() => {
           setQuestion("");
           setAnswer("");
+          setAnswers({});
+          setBestModel(null);
           setIsChatLoading(false);
           setImg({
             isLoading: false,
@@ -132,6 +155,7 @@ const NewPrompt = ({ data }) => {
       setIsChatLoading(false);
     },
   });
+
   const add = async (text, isInitial) => {
     try {
       if (!isInitial) setQuestion(text);
@@ -162,47 +186,56 @@ const NewPrompt = ({ data }) => {
       setIsChatLoading(false);
     }
   };
-  // const add = async (text, isInitial) => {
-  //   if (!isInitial) setQuestion(text);
-  //   setIsChatLoading(true);
+  const adds = async (text) => {
+    setIsChatLoading(true);
+    setQuestion(text);
+    // 初始化 answers 为两个空对象
+    setAnswers(selectedModels.map((model) => ({ model, answer: "" })));
+    const results = await Promise.all(
+      selectedModels.map(async (modelKey) => {
+        let modelInstance;
+        switch (modelKey) {
+          case "gemini-pro":
+            modelInstance = geminiPro;
+            break;
+          case "gemini-flash":
+            modelInstance = geminiFlash;
+            break;
+          case "deepseek":
+            modelInstance = deepSeekChat;
+            break;
+          default:
+            modelInstance = geminiFlash;
+        }
+        // 创建 chat 实例
+        const chatInstance = modelInstance.startChat({
+          history: data?.history.map(({ role, parts }) => ({
+            role,
+            parts: [{ text: parts[0].text }],
+          })),
+        });
+        // 返回模型名和结果
+        return chatInstance.sendMessageStream([text]).then(async (result) => {
+          let accumulatedText = "";
+          for await (const chunk of result.stream) {
+            accumulatedText += chunk.text();
+            setAnswers((prev) =>
+              prev.map((item) =>
+                item.model === modelKey
+                  ? { ...item, answer: accumulatedText }
+                  : item
+              )
+            );
+          }
+          return { model: modelKey, answer: accumulatedText };
+        });
+      })
+    );
+    console.log(results);
+    setAnswers(results); // [{model: "gemini-flash", answer: "..."}, ...]
+    setIsChatLoading(false);
+  };
 
-  //   const results = {};
-  //   const streams = selectedModel.map(async (modelKey) => {
-  //     let modelInstance;
-  //     switch (modelKey) {
-  //       case "gemini-pro":
-  //         modelInstance = geminiPro;
-  //         break;
-  //       case "gemini-flash":
-  //         modelInstance = geminiFlash;
-  //         break;
-  //       case "deepseek":
-  //         modelInstance = deepSeekChat;
-  //         break;
-  //       default:
-  //         modelInstance = geminiPro;
-  //     }
-
-  //     const chatInstance = modelInstance.startChat({
-  //       history: data?.history.map(({ role, parts }) => ({
-  //         role,
-  //         parts: [{ text: parts[0].text }],
-  //       })),
-  //     });
-
-  //     let accumulated = "";
-  //     const result = await chatInstance.sendMessageStream(text);
-  //     for await (const chunk of result.stream) {
-  //       accumulated += chunk.text();
-  //       setAnswers((prev) => ({ ...prev, [modelKey]: accumulated }));
-  //     }
-  //     results[modelKey] = accumulated;
-  //   });
-
-  //   await Promise.all(streams);
-
-  //   setIsChatLoading(false);
-  // };
   const hasRun = useRef(false);
   useEffect(() => {
     if (!hasRun.current) {
@@ -215,37 +248,6 @@ const NewPrompt = ({ data }) => {
     hasRun.current = true;
   }, []);
 
-  // 添加保存编辑的处理函数
-  const handleSaveEdit = async (editedContent) => {
-    setAnswer(editedContent);
-    setIsEditingAnswer(false);
-
-    // 更新到服务器
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/chat/${data._id}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question: question.length ? question : undefined,
-          answer: editedContent,
-          img: img.dbData?.filePath || undefined,
-        }),
-      });
-
-      // 使查询失效以刷新数据
-      queryClient.invalidateQueries({ queryKey: ["chat", data._id] });
-    } catch (error) {
-      console.error("保存编辑失败:", error);
-    }
-  };
-
-  // 添加取消编辑的处理函数
-  const handleCancelEdit = () => {
-    setIsEditingAnswer(false);
-  };
   return (
     <>
       {/* ADD NEW CHAT */}
@@ -261,39 +263,44 @@ const NewPrompt = ({ data }) => {
       {question && <div className="message user">{question}</div>}
       {answer && (
         <div className="message">
-          <MarkdownEditor
-            answer={answer}
-            isEditing={isEditingAnswer}
-            onSave={handleSaveEdit}
-            onCancel={handleCancelEdit}
-          />
-
-          <div className="message-actions">
-            <button>复制</button>
-            {!isEditingAnswer && (
-              <button onClick={() => setIsEditingAnswer(true)}>
-                在画布中编辑
-              </button>
-            )}
-            {/* ... 其他按钮 */}
-          </div>
+          <MarkdownEditor answer={answer} />
         </div>
       )}
-      {/* <div className="answers-container">
-        {Object.entries(answers).map(([modelKey, ans]) => (
-          <div key={modelKey} className="answer-block">
-            <h4>{modelKey}</h4>
-            <Markdown>{ans}</Markdown>
-          </div>
-        ))}
-      </div> */}
+
+      {answers.length === 2 && bestModel === null && (
+        <div className="answers-columns">
+          {answers.map((item) => (
+            <div key={item.model} className="answer-column">
+              <h4>{item.model} 回答：</h4>
+              <MarkdownEditor answer={item.answer} />
+              <button onClick={() => handleSelectBest(item.model)}>
+                选为最优
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {bestModel &&
+        (() => {
+          const bestAnswerObj = answers.find(
+            (item) => item.model === bestModel
+          );
+          return bestAnswerObj ? (
+            <div className="message">
+              <h4>{bestAnswerObj.model} 最优回答：</h4>
+              <MarkdownEditor answer={bestAnswerObj.answer} />
+            </div>
+          ) : null;
+        })()}
       <div className="endChat" ref={endRef}></div>
 
       <form className="newForm" onSubmit={handleOnSubmit} ref={formRef}>
         <Upload setImg={setImg} />
         {/* 模型选择器 */}
         <Select
-          defaultValue="gemini-2.5-flash"
+          defaultValue="gemini-flash"
+          mode="multiple"
           onChange={handleChange}
           style={{
             width: 150,
@@ -323,25 +330,6 @@ const NewPrompt = ({ data }) => {
             },
           ]}
         />
-        {/* <Select
-          mode="multiple" // 支持多选
-          defaultValue={["gemini-pro"]}
-          onChange={setSelectedModel}
-          style={{ width: 250 }}
-          options={[
-            {
-              label: "Gemini",
-              options: [
-                { label: "gemini-2.5-flash", value: "gemini-flash" },
-                { label: "gemini-2.5-pro", value: "gemini-pro" },
-              ],
-            },
-            {
-              label: "DeepSeek",
-              options: [{ label: "deepseek", value: "deepseek" }],
-            },
-          ]}
-        /> */}
         <input id="file" type="file" multiple={false} hidden />
         <input
           type="text"
